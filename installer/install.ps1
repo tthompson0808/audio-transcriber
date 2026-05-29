@@ -19,7 +19,7 @@
 [CmdletBinding()]
 param(
     [string]$InstallRoot = "$env:LOCALAPPDATA\Audio_Transcriber",
-    [string]$RepoPath = $PSScriptRoot | Split-Path -Parent,  # parent of installer/
+    [string]$RepoPath = (Split-Path -Parent $PSScriptRoot),  # parent of installer/
     [switch]$SkipPython
 )
 
@@ -45,7 +45,10 @@ foreach ($cand in @("py -3.12", "py -3", "python", "python3")) {
             $python = $cand
             break
         }
-    } catch {}
+    } catch {
+        # Expected: probing for a Python that may not exist. Continue to next candidate.
+        Write-Verbose "Probe for '$cand' failed: $($_.Exception.Message)"
+    }
 }
 if (-not $python) {
     if ($SkipPython) {

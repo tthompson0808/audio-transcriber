@@ -45,24 +45,24 @@ New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
 
 # --- Logging helpers ---
 # Every Write-* helper tees to the log file so the full session is captured.
-function Write-Log($line) {
+function Write-LogLine($line) {
     Add-Content -Path $logFile -Value ("[{0}] {1}" -f (Get-Date -Format "HH:mm:ss"), $line)
 }
 function Write-Step($msg) {
     Write-Host "→ $msg" -ForegroundColor Cyan
-    Write-Log  "STEP: $msg"
+    Write-LogLine  "STEP: $msg"
 }
 function Write-Ok($msg) {
     Write-Host "  ✓ $msg" -ForegroundColor Green
-    Write-Log  "OK:   $msg"
+    Write-LogLine  "OK:   $msg"
 }
 function Write-Warn($msg) {
     Write-Host "  ! $msg" -ForegroundColor Yellow
-    Write-Log  "WARN: $msg"
+    Write-LogLine  "WARN: $msg"
 }
 function Write-Err($msg) {
     Write-Host "  ✗ $msg" -ForegroundColor Red
-    Write-Log  "ERR:  $msg"
+    Write-LogLine  "ERR:  $msg"
 }
 
 # --- Banner ---
@@ -70,10 +70,10 @@ Write-Host ""
 Write-Host "Audio_Transcriber bootstrap" -ForegroundColor White
 Write-Host "===========================" -ForegroundColor White
 Write-Host ""
-Write-Log  "=== Bootstrap started ==="
-Write-Log  "ZipUrl=$ZipUrl"
-Write-Log  "InstallRoot=$InstallRoot"
-Write-Log  "Force=$Force  SkipPython=$SkipPython"
+Write-LogLine  "=== Bootstrap started ==="
+Write-LogLine  "ZipUrl=$ZipUrl"
+Write-LogLine  "InstallRoot=$InstallRoot"
+Write-LogLine  "Force=$Force  SkipPython=$SkipPython"
 
 try {
 
@@ -87,7 +87,7 @@ try {
             Write-Host "  .\bootstrap.ps1 -Force" -ForegroundColor Yellow
             Write-Host ""
             Write-Host "(Existing install was left untouched.)" -ForegroundColor Yellow
-            Write-Log "Existing install found, -Force not set — exiting cleanly."
+            Write-LogLine "Existing install found, -Force not set — exiting cleanly."
             exit 0
         }
         Write-Warn "Existing install found — removing because -Force was specified."
@@ -99,7 +99,7 @@ try {
 
     # --- 2. Download release ZIP ---
     Write-Step "Downloading release ZIP"
-    Write-Log "GET $ZipUrl"
+    Write-LogLine "GET $ZipUrl"
     if (Test-Path $zipFile) { Remove-Item -Path $zipFile -Force }
     try {
         Invoke-WebRequest -Uri $ZipUrl -OutFile $zipFile -UseBasicParsing
@@ -124,7 +124,7 @@ try {
     $topLevel = Get-ChildItem -Path $srcDir -Force
     if ($topLevel.Count -eq 1 -and $topLevel[0].PSIsContainer) {
         $inner = $topLevel[0].FullName
-        Write-Log "ZIP wraps content in $($topLevel[0].Name) — hoisting up one level"
+        Write-LogLine "ZIP wraps content in $($topLevel[0].Name) — hoisting up one level"
         Get-ChildItem -Path $inner -Force | Move-Item -Destination $srcDir -Force
         Remove-Item -Path $inner -Recurse -Force
     }
@@ -140,7 +140,7 @@ try {
 
     # --- 5. Run inner installer ---
     Write-Step "Running inner installer (this can take a few minutes)"
-    Write-Log "Invoking: powershell -NoProfile -ExecutionPolicy Bypass -File $innerInstaller -RepoPath $srcDir -InstallRoot $InstallRoot"
+    Write-LogLine "Invoking: powershell -NoProfile -ExecutionPolicy Bypass -File $innerInstaller -RepoPath $srcDir -InstallRoot $InstallRoot"
 
     # Build arg list — pass -SkipPython through if it was set on bootstrap.
     $innerArgs = @(
@@ -177,15 +177,15 @@ try {
     Write-Host "Bootstrap complete." -ForegroundColor Green
     Write-Host "Log: $logFile" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Log "=== Bootstrap finished successfully ==="
+    Write-LogLine "=== Bootstrap finished successfully ==="
     exit 0
 
 } catch {
     $errMsg = $_.Exception.Message
     Write-Host ""
     Write-Err "Bootstrap failed: $errMsg"
-    Write-Log "FATAL: $errMsg"
-    Write-Log "STACK: $($_.ScriptStackTrace)"
+    Write-LogLine "FATAL: $errMsg"
+    Write-LogLine "STACK: $($_.ScriptStackTrace)"
     Write-Host ""
     Write-Host "Something went wrong during install." -ForegroundColor Red
     Write-Host "Please send this log file to Tyler:" -ForegroundColor Yellow

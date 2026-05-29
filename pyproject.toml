@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio_transcriber"
-version = "0.1.0"
+version = "0.1.1"
 description = "Background meeting transcription + digest for Windows. Auto-pulls Teams transcripts via Graph, auto-records Zoom via WASAPI, accepts drag-drop audio/VTT, and exposes a queryable SQLite digest."
 readme = "README.md"
 requires-python = ">=3.12"
