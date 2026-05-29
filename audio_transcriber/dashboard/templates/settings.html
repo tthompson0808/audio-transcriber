@@ -1,0 +1,59 @@
+{% extends "_base.html" %}
+{% block title %}Settings — Audio_Transcriber{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Settings</h1>
+
+{% if saved %}
+<div class="bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded mb-6 text-sm">Saved {{ saved }}.</div>
+{% endif %}
+
+<section class="bg-white border border-slate-200 rounded p-5 mb-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">API Keys</h2>
+  <p class="text-sm text-slate-600 mb-4">Stored securely in Windows Credential Manager. Leaving a field blank keeps the existing value.</p>
+  <form method="post" action="/settings/keys" class="space-y-3">
+    <div>
+      <label class="block text-sm font-medium mb-1">Anthropic Claude {% if has_anthropic %}<span class="text-xs text-green-700">(set)</span>{% else %}<span class="text-xs text-red-700">(missing)</span>{% endif %}</label>
+      <input type="password" name="anthropic_key" placeholder="sk-ant-…" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm">
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">OpenAI Whisper {% if has_openai %}<span class="text-xs text-green-700">(set)</span>{% else %}<span class="text-xs text-red-700">(missing)</span>{% endif %}</label>
+      <input type="password" name="openai_key" placeholder="sk-…" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm">
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Microsoft Graph {% if has_graph %}<span class="text-xs text-green-700">(connected)</span>{% else %}<span class="text-xs text-red-700">(run install OAuth)</span>{% endif %}</label>
+      <p class="text-xs text-slate-500">Graph auth is one-time, run during install via PowerShell.</p>
+    </div>
+    <button class="bg-slate-900 text-white text-sm px-4 py-2 rounded">Save keys</button>
+  </form>
+</section>
+
+<section class="bg-white border border-slate-200 rounded p-5 mb-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Auto-record + Exclusions</h2>
+  <form method="post" action="/settings/exclusion" class="space-y-3">
+    <div>
+      <label class="text-sm flex items-center gap-2">
+        <input type="checkbox" name="auto_record" value="on" {% if cfg.auto_record.enabled %}checked{% endif %}>
+        Auto-record running Zoom meetings (WASAPI)
+      </label>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Title exclusion patterns (one regex per line)</label>
+      <textarea name="title_patterns" rows="4" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm font-mono">{{ cfg.exclusion.title_patterns|join("\n") }}</textarea>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Attendee email blocklist (one domain or email per line)</label>
+      <textarea name="attendee_blocklist" rows="3" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm font-mono">{{ cfg.exclusion.attendee_email_blocklist|join("\n") }}</textarea>
+    </div>
+    <button class="bg-slate-900 text-white text-sm px-4 py-2 rounded">Save</button>
+  </form>
+</section>
+
+<section class="bg-white border border-slate-200 rounded p-5">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Data locations</h2>
+  <dl class="text-sm space-y-1">
+    <div><dt class="inline font-medium">Meetings + drop folders:</dt> <dd class="inline text-slate-600">{{ cfg.data_dir }}</dd></div>
+    <div><dt class="inline font-medium">Digest DB:</dt> <dd class="inline text-slate-600">{{ cfg.local_dir }}\digest.db</dd></div>
+    <div><dt class="inline font-medium">Dashboard:</dt> <dd class="inline text-slate-600">{{ cfg.dashboard.host }}:{{ cfg.dashboard.port }}</dd></div>
+  </dl>
+</section>
+{% endblock %}

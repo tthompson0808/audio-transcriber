@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block title %}Recent Meetings — Audio_Transcriber{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Recent Meetings</h1>
+{% if not meetings %}
+  <p class="text-slate-600">No meetings yet. They'll appear here once Teams calls are picked up by Graph, Zoom is auto-recorded, or you drop a transcript or audio file.</p>
+{% else %}
+<ul class="divide-y divide-slate-200 bg-white rounded-lg border border-slate-200">
+  {% for m in meetings %}
+  <li class="px-5 py-4 hover:bg-slate-50">
+    <a href="/meeting/{{ m.id }}" class="flex items-center justify-between">
+      <div>
+        <div class="font-medium">{{ m.title }}</div>
+        <div class="text-sm text-slate-500">{{ m.date }} · {{ m.source }}{% if m.participants %} · {{ m.participants|join(", ") }}{% endif %}</div>
+      </div>
+      <span class="text-slate-400 text-sm">→</span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

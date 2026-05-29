@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block title %}Decisions — Audio_Transcriber{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Decisions</h1>
+
+<form method="get" action="/decisions" class="flex gap-2 mb-6">
+  <input type="text" name="keyword" value="{{ keyword }}" placeholder="Keyword…" class="border border-slate-300 rounded px-3 py-1.5 text-sm flex-1">
+  <input type="date" name="since" value="{{ since }}" class="border border-slate-300 rounded px-3 py-1.5 text-sm">
+  <button class="bg-slate-900 text-white text-sm px-4 py-1.5 rounded">Filter</button>
+</form>
+
+{% if not decisions %}<p class="text-slate-500">No decisions match.</p>{% endif %}
+<ul class="space-y-3">
+  {% for d in decisions %}
+  <li class="bg-white border border-slate-200 rounded p-4">
+    <div class="font-medium">{{ d.decision }}</div>
+    {% if d.context %}<div class="text-sm text-slate-600 mt-1">{{ d.context }}</div>{% endif %}
+    <div class="text-xs text-slate-400 mt-2">{{ d.decided_at }} · <a href="/meeting/{{ d.meeting_id }}" class="text-blue-600 hover:underline">view meeting</a></div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

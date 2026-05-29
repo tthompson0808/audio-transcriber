@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Audio_Transcriber{% endblock %}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+<header class="border-b border-slate-200 bg-white">
+  <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+    <a href="/" class="text-lg font-semibold tracking-tight">Audio_Transcriber</a>
+    <nav class="flex gap-5 text-sm">
+      <a href="/" class="hover:text-blue-600">Meetings</a>
+      <a href="/tasks" class="hover:text-blue-600">Action Items</a>
+      <a href="/decisions" class="hover:text-blue-600">Decisions</a>
+      <a href="/search" class="hover:text-blue-600">Search</a>
+      <a href="/settings" class="hover:text-blue-600">Settings</a>
+    </nav>
+  </div>
+</header>
+<main class="max-w-5xl mx-auto px-6 py-8">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

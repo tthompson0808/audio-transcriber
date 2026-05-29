@@ -1,0 +1,20 @@
+{% extends "_base.html" %}
+{% block title %}Search — Audio_Transcriber{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Search Transcripts</h1>
+<form method="get" action="/search" class="flex gap-2 mb-6">
+  <input type="text" name="q" value="{{ q }}" placeholder="Keyword across all meetings…" class="border border-slate-300 rounded px-3 py-1.5 text-sm flex-1" autofocus>
+  <button class="bg-slate-900 text-white text-sm px-4 py-1.5 rounded">Search</button>
+</form>
+
+{% if q and not results %}<p class="text-slate-500">No matches for "{{ q }}".</p>{% endif %}
+<ul class="space-y-3">
+  {% for r in results %}
+  <li class="bg-white border border-slate-200 rounded p-4">
+    <div class="font-medium">{{ r.title }}</div>
+    <div class="text-sm text-slate-600 mt-1">…{{ r.snippet }}…</div>
+    <div class="text-xs text-slate-400 mt-2">{{ r.date }}</div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "_base.html" %}
+{% block title %}{{ meeting.title }} — Audio_Transcriber{% endblock %}
+{% block content %}
+<a href="/" class="text-sm text-blue-600 hover:underline">← Back to meetings</a>
+
+<h1 class="text-2xl font-semibold mt-3 mb-1">{{ meeting.title }}</h1>
+<div class="text-sm text-slate-500 mb-6">
+  {{ meeting.date }} · source: {{ meeting.source }}
+  {% if meeting.duration_seconds %} · {{ meeting.duration_seconds }}s{% endif %}
+  {% if not meeting.has_speakers %} · <span class="text-amber-600">no speaker labels</span>{% endif %}
+</div>
+
+{% if meeting.summary %}
+<section class="bg-white border border-slate-200 rounded-lg p-5 mb-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-2">Summary</h2>
+  <p>{{ meeting.summary }}</p>
+</section>
+{% endif %}
+
+{% if tasks %}
+<section class="bg-white border border-slate-200 rounded-lg p-5 mb-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Action Items</h2>
+  <ul class="space-y-2">
+    {% for t in tasks %}
+    <li class="flex items-baseline gap-3">
+      <span class="font-medium text-sm">{{ t.owner or "(unattributed)" }}</span>
+      <span class="flex-1">{{ t.task }}</span>
+      {% if t.due_date %}<span class="text-xs text-slate-500">due {{ t.due_date }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if decisions %}
+<section class="bg-white border border-slate-200 rounded-lg p-5 mb-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Decisions</h2>
+  <ul class="space-y-2">
+    {% for d in decisions %}
+    <li><span class="font-medium">{{ d.decision }}</span>{% if d.context %} — <span class="text-slate-600">{{ d.context }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if topics %}
+<section class="mb-6">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-2">Topics</h2>
+  <div class="flex flex-wrap gap-2">
+    {% for t in topics %}<span class="px-2 py-1 bg-slate-200 text-slate-700 text-xs rounded">{{ t }}</span>{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if meeting.utterances %}
+<details class="bg-white border border-slate-200 rounded-lg p-5">
+  <summary class="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-500">Transcript ({{ meeting.utterances|length }} utterances)</summary>
+  <ul class="mt-4 space-y-2 text-sm">
+    {% for u in meeting.utterances %}
+    <li><span class="text-slate-400">{% if u.start %}[{{ u.start }}]{% endif %} {{ u.speaker }}:</span> {{ u.text }}</li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% endblock %}
