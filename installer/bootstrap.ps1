@@ -15,9 +15,9 @@
 [CmdletBinding()]
 param(
     # URL of the release ZIP to download. Default points at the GitHub
-    # "latest" release asset. {OWNER}/{REPO} are placeholders — replace
+    # "latest" release asset. tthompson0808/audio-transcriber are placeholders — replace
     # at release time, or pass -ZipUrl explicitly.
-    [string]$ZipUrl = "https://github.com/{OWNER}/{REPO}/releases/latest/download/audio_transcriber-latest.zip",
+    [string]$ZipUrl = "https://github.com/tthompson0808/audio-transcriber/releases/latest/download/audio_transcriber-latest.zip",
 
     # Root install folder. Source code lands in $InstallRoot\src.
     [string]$InstallRoot = "$env:LOCALAPPDATA\Audio_Transcriber",

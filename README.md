@@ -77,7 +77,7 @@ See [docs/CEO_HANDOFF.md](docs/CEO_HANDOFF.md) for the CEO-facing one-pager and 
 
 Short version:
 ```powershell
-git clone https://github.com/agentic-consulting/audio-transcriber C:\src\audio-transcriber
+git clone https://github.com/tthompson0808/audio-transcriber C:\src\audio-transcriber
 cd C:\src\audio-transcriber\installer
 .\install.ps1
 ```

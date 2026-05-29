@@ -11,7 +11,7 @@ Open **PowerShell** (press the Windows key, type `PowerShell`, hit Enter — the
 Copy the line below, paste it into PowerShell, and press Enter:
 
 ```powershell
-$z=$env:TEMP+'\at.ps1';Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/{OWNER}/{REPO}/releases/latest/download/bootstrap.ps1' -OutFile $z;powershell -ExecutionPolicy Bypass -File $z
+$z=$env:TEMP+'\at.ps1';Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/tthompson0808/audio-transcriber/releases/latest/download/bootstrap.ps1' -OutFile $z;powershell -ExecutionPolicy Bypass -File $z
 ```
 
 That's the whole install. Sit back.

@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-if (-not $Repo) { $Repo = "agentic-consulting/audio-transcriber" }
+if (-not $Repo) { $Repo = "tthompson0808/audio-transcriber" }
 
 $logDir = Join-Path $env:OneDriveCommercial "Audio_Transcriber\logs"
 if (-not (Test-Path $logDir)) { $logDir = Join-Path $env:USERPROFILE "Audio_Transcriber\logs" }
