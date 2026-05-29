@@ -2,6 +2,15 @@
 
 This is everything you need to install Audio Transcriber on your PC. Should take about 5 minutes. You do **not** need IT or admin rights.
 
+## Before you start
+
+Make sure these two are installed and signed in:
+
+- **Claude Desktop** — download from [claude.ai/download](https://claude.ai/download). Sign in with the Claude account that has your Pro or Max plan. Audio Transcriber will plug into Claude Desktop and use your existing plan to process meetings.
+- **Claude Code** — also from [claude.ai/download/code](https://claude.ai/download/code). Same login. This is what you'll use to start/stop recording on demand.
+
+You'll also need an **OpenAI API key** (for transcribing audio to text). We sent it to you with this email; if not, sign up at [platform.openai.com](https://platform.openai.com), generate a key, set a $25/mo cap.
+
 ---
 
 ## 1. Install command
@@ -37,18 +46,33 @@ Total time: about 3–5 minutes on a normal connection.
 
 ## 3. After install
 
-You're done installing. Two things to do before first use:
+You're done installing. **Three** things to do before first use:
 
-- **Desktop shortcut** — look for **Audio Transcriber** on your desktop. Double-click it any time you want to start the app.
-- **Add your API keys** — open the dashboard at:
+1. **Restart Claude Desktop.** Right-click its tray icon → Quit. Reopen it. (This makes Claude pick up the new tools.) To check it worked: in Claude Desktop, open Settings → Developer → MCP. You should see `audio_transcriber` listed.
 
-  **http://127.0.0.1:8765/settings**
+2. **Open the dashboard.** Look for the **Audio Transcriber** shortcut on your desktop. Double-click it. Browser opens to http://127.0.0.1:8765/
 
-  Paste in the API keys we sent you (OpenAI and any others listed in your welcome email). Click **Save**. That's it — you're ready to transcribe.
+3. **Add your OpenAI key.** In the dashboard, click **Settings** in the top nav. Paste the OpenAI key we sent you, click **Save**.
+
+That's it — you're ready.
+
+## 4. How to use it
+
+Audio Transcriber captures meetings automatically. When you want to read summaries and action items, you have two options:
+
+- **Open the dashboard** (desktop shortcut) — shows recent meetings, action items, decisions.
+- **Ask Claude Desktop** — open Claude Desktop and say things like:
+  - "List pending meetings and synthesize them." → Claude reads the raw transcripts and pulls out the title, summary, action items, decisions.
+  - "What are my open action items?" → Claude reads your action-item table.
+  - "What did we decide about Buildertrend?" → Claude searches your decisions.
+
+You can also tell **Claude Code** (separately):
+- "Start transcribing my meeting." → Recording begins.
+- "Stop transcribing." → Saves and queues for synthesis.
 
 ---
 
-## 4. If something goes wrong
+## 5. If something goes wrong
 
 Three issues come up occasionally. Each has a one-line fix you can paste into PowerShell.
 

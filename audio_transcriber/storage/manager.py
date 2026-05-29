@@ -35,8 +35,14 @@ def save_meeting(meeting: dict, cfg: dict) -> str:
         print(f"Duplicate of {existing_id} — merging higher-fidelity source if applicable.")
         return _merge_into_existing(existing_id, meeting, cfg)
 
+    # synthesized=False marks the meeting as pending. Synthesis happens later via
+    # Claude Desktop (primary, MCP-driven) or `audio_transcriber synthesize-pending`
+    # (Anthropic API fallback). We never call Claude in this function — the goal
+    # is to land the raw transcript fast and let the synthesis step run on its own
+    # schedule (3x/day routine) under the user's Pro/Max plan, not per-token API.
+    has_summary = bool(meeting.get("summary")) or bool(meeting.get("action_items"))
     canonical = {
-        "schema_version": 1,
+        "schema_version": 2,
         "id": meeting_id,
         "source": meeting.get("source", "audio_transcriber"),
         "source_file": meeting.get("source_file"),
@@ -51,6 +57,9 @@ def save_meeting(meeting: dict, cfg: dict) -> str:
         "action_items": meeting.get("action_items", []),
         "utterances": meeting.get("utterances", []),
         "has_speakers": meeting.get("has_speakers", True),
+        "synthesized": has_summary,
+        "synthesized_at": meeting.get("synthesized_at"),
+        "synthesized_by": meeting.get("synthesized_by"),  # "claude_desktop" | "api_fallback" | None
         "tags": [],
         "processed_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -79,13 +88,9 @@ def save_meeting(meeting: dict, cfg: dict) -> str:
     }
     add_to_index(index_entry, cfg)
 
-    try:
-        from audio_transcriber.digest.pipeline import digest_meeting
-        print("Running digest...")
-        digest_meeting(meeting_id, cfg)
-    except Exception as e:
-        print(f"Digest failed (meeting saved OK): {e}")
-
+    # Digest extraction (tasks/decisions/topics) was previously triggered here
+    # via Claude API. It now runs only after synthesis completes — see
+    # synthesize/pending.py and mcp_server.save_synthesis.
     return json_path
 
 

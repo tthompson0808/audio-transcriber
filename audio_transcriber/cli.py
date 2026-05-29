@@ -5,6 +5,8 @@ All commands are designed to be safe to call from a non-interactive context
 (no prompts, no stdin reads). Output goes to stdout as plain text.
 """
 import argparse
+import json
+import os
 import sys
 
 from audio_transcriber.config import load_config
@@ -120,6 +122,77 @@ def cmd_set_key(args, cfg):
     print(f"Saved {name} to Credential Manager.")
 
 
+def cmd_synthesize_pending(args, cfg):
+    """Synthesize pending meetings via the Anthropic API fallback path.
+
+    Primary synthesis happens through Claude Desktop (driven by the MCP server).
+    This is the failsafe — invoke it when Claude Desktop isn't around, or wire
+    it into a scheduled task for guaranteed forward progress.
+    """
+    from audio_transcriber.synthesize.pending import list_pending, run_api_fallback
+    pending = list_pending(cfg)
+    if not pending:
+        print("No pending meetings.")
+        return
+    print(f"{len(pending)} pending meeting(s).")
+    if args.dry_run:
+        for p in pending:
+            print(f"  {p['id']}  {p['date']}  {p.get('title','')}")
+        return
+    result = run_api_fallback(cfg, meeting_ids=args.id if args.id else None)
+    print(f"Processed: {result['processed']}  Skipped: {result['skipped']}  Errors: {len(result['errors'])}")
+    for e in result["errors"]:
+        print(f"  ! {e['meeting_id']}: {e['error']}")
+
+
+def cmd_mcp_server(args, cfg):
+    """Run the MCP server in the foreground (stdio). Claude Desktop launches this."""
+    from audio_transcriber.mcp_server import main as run_mcp
+    run_mcp()
+
+
+def cmd_claude_config(args, cfg):
+    """Write/merge the audio_transcriber entry into claude_desktop_config.json.
+
+    Detects Claude Desktop's config path on Windows (%APPDATA%\\Claude\\) or
+    macOS (~/Library/Application Support/Claude/). Preserves any other MCP
+    servers already configured.
+    """
+    import sys as _sys
+    from pathlib import Path
+
+    if _sys.platform.startswith("win"):
+        config_dir = Path(os.environ.get("APPDATA", "")) / "Claude"
+    elif _sys.platform == "darwin":
+        config_dir = Path.home() / "Library" / "Application Support" / "Claude"
+    else:
+        config_dir = Path.home() / ".config" / "Claude"
+
+    config_path = config_dir / "claude_desktop_config.json"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    existing = {}
+    if config_path.exists():
+        try:
+            existing = json.loads(config_path.read_text())
+        except json.JSONDecodeError:
+            print(f"WARN: {config_path} is not valid JSON. Aborting to avoid clobbering it.", file=_sys.stderr)
+            sys.exit(1)
+
+    # Resolve the python executable that runs the MCP server. Default: this
+    # interpreter (set by the venv when installer/install.ps1 runs us).
+    python_exe = args.python_exe or _sys.executable
+    existing.setdefault("mcpServers", {})
+    existing["mcpServers"]["audio_transcriber"] = {
+        "command": python_exe,
+        "args": ["-m", "audio_transcriber.mcp_server"],
+    }
+
+    config_path.write_text(json.dumps(existing, indent=2))
+    print(f"Wrote MCP entry to {config_path}")
+    print("Restart Claude Desktop to pick up the change.")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="audio_transcriber")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -172,6 +245,15 @@ def main():
     sk.add_argument("provider", choices=["anthropic", "openai"])
     sk.add_argument("value")
 
+    sp = sub.add_parser("synthesize-pending", help="Synthesize queued meetings via Anthropic API (fallback path)")
+    sp.add_argument("--dry-run", action="store_true", help="Just list what would be processed")
+    sp.add_argument("--id", nargs="*", help="Specific meeting IDs to process (default: all pending)")
+
+    sub.add_parser("mcp-server", help="Run the MCP server (stdio). Claude Desktop launches this.")
+
+    cc = sub.add_parser("claude-config", help="Write/merge audio_transcriber into claude_desktop_config.json")
+    cc.add_argument("--python-exe", default=None, help="Override python.exe path (default: this interpreter)")
+
     args = parser.parse_args()
     cfg = load_config()
 
@@ -183,6 +265,9 @@ def main():
         "transcript": cmd_transcript,
         "digest": cmd_digest,
         "set-key": cmd_set_key,
+        "synthesize-pending": cmd_synthesize_pending,
+        "mcp-server": cmd_mcp_server,
+        "claude-config": cmd_claude_config,
     }
     dispatch[args.cmd](args, cfg)
 

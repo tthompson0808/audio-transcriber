@@ -79,7 +79,8 @@ Write-Step "Installing audio_transcriber + deps"
     msal httpx `
     psutil pygetwindow watchdog `
     keyring pyaudiowpatch `
-    pystray pillow win10toast-click
+    pystray pillow win10toast-click `
+    "mcp[cli]>=1.0"
 & $pipExe install --quiet --no-deps -e "$RepoPath"
 Write-Ok "Dependencies installed"
 
@@ -133,6 +134,28 @@ Register-Or-Update-Task "AudioTranscriber_Dashboard" $dashAction $dashTrigger "L
 
 Write-Ok "Tasks registered"
 
+# --- 5b. Synthesis fallback: pending-queue runner ---
+# Primary synthesis is Claude Desktop via MCP. This scheduled task is the
+# safety net that drains the queue 3x/day via the Anthropic API IF a key is
+# configured. With no key, it no-ops silently — Claude Desktop is in charge.
+$synthAction = New-ScheduledTaskAction -Execute $pyExe -Argument "-m audio_transcriber synthesize-pending"
+$synthTrigger1 = New-ScheduledTaskTrigger -Daily -At "07:00am"
+$synthTrigger2 = New-ScheduledTaskTrigger -Daily -At "12:30pm"
+$synthTrigger3 = New-ScheduledTaskTrigger -Daily -At "06:00pm"
+Register-Or-Update-Task "AudioTranscriber_SynthFallback" $synthAction @($synthTrigger1, $synthTrigger2, $synthTrigger3) "API fallback for pending synthesis (3x daily)"
+
+# --- 5c. Claude Desktop MCP registration ---
+Write-Step "Registering MCP server with Claude Desktop"
+$claudeConfigDir = Join-Path $env:APPDATA "Claude"
+if (Test-Path $claudeConfigDir) {
+    & $pyExe -m audio_transcriber claude-config --python-exe $pyExe 2>&1 | Out-Null
+    Write-Ok "MCP registered. Restart Claude Desktop to pick it up."
+} else {
+    Write-Warn "Claude Desktop not detected at $claudeConfigDir."
+    Write-Warn "Install Claude Desktop (claude.ai/download), then run:"
+    Write-Warn "  $pyExe -m audio_transcriber claude-config"
+}
+
 # --- 6. Desktop shortcut ---
 Write-Step "Placing desktop shortcut"
 $shortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "Audio_Transcriber.lnk"
@@ -155,6 +178,15 @@ Write-Ok "Services running"
 
 Write-Host ""
 Write-Host "Install complete." -ForegroundColor Green
-Write-Host "Next: open http://127.0.0.1:8765/settings to enter API keys, then run:" -ForegroundColor White
-Write-Host "  $pyExe -m audio_transcriber graph-auth --client-id <ID> --tenant-id <TENANT>" -ForegroundColor White
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor White
+Write-Host "  1. Restart Claude Desktop (so it picks up the MCP server registration)." -ForegroundColor White
+Write-Host "  2. Open http://127.0.0.1:8765/settings to enter the OpenAI Whisper key." -ForegroundColor White
+Write-Host "     The Anthropic key is OPTIONAL — only needed if you want the 3x-daily API" -ForegroundColor White
+Write-Host "     fallback to run when Claude Desktop is unavailable." -ForegroundColor White
+Write-Host "  3. Run the Graph OAuth flow (one-time):" -ForegroundColor White
+Write-Host "       $pyExe -m audio_transcriber graph-auth --client-id <ID> --tenant-id <TENANT>" -ForegroundColor White
+Write-Host ""
+Write-Host "To synthesize meetings in Claude Desktop, just ask:" -ForegroundColor Cyan
+Write-Host "  'List pending meetings and process them.'" -ForegroundColor Cyan
 Write-Host ""

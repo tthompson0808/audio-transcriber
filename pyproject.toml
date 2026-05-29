@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio_transcriber"
-version = "0.1.1"
+version = "0.2.0"
 description = "Background meeting transcription + digest for Windows. Auto-pulls Teams transcripts via Graph, auto-records Zoom via WASAPI, accepts drag-drop audio/VTT, and exposes a queryable SQLite digest."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -12,7 +12,7 @@ license = { text = "Proprietary — Agentic Consulting" }
 authors = [{ name = "Agentic Consulting", email = "tyler@agentconsult.ai" }]
 
 dependencies = [
-    "anthropic>=0.40",
+    "anthropic>=0.40",  # API fallback path only — primary synthesis is Claude Desktop via MCP
     "openai>=1.50",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
@@ -21,6 +21,7 @@ dependencies = [
     "msal>=1.30",
     "httpx>=0.27",
     "keyring>=25",
+    "mcp[cli]>=1.0",  # MCP server for Claude Desktop synthesis
 ]
 
 [project.optional-dependencies]

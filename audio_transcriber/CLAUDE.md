@@ -2,40 +2,53 @@
 
 This file teaches Claude Code (running on the CEO's Windows laptop) how to drive Audio_Transcriber on the CEO's behalf. The CEO never types commands or opens a terminal — he talks to Claude in plain English and Claude calls the CLI.
 
+> **Synthesis architecture:** Audio_Transcriber captures meetings and queues them for synthesis. Primary synthesis runs in **Claude Desktop** (a different app from Claude Code) via the audio_transcriber MCP server — it uses the CEO's Pro/Max subscription, not an API key. A scheduled fallback runs 3x/day to drain the queue via the Anthropic API IF a key is configured.
+
 ## When the CEO says something like…
 
 | He says | You run |
 |---|---|
-| "start transcribing my meeting" / "start recording" / "capture this call" | `python -m audio_transcriber meeting start` |
-| "stop transcribing" / "stop recording" / "save the meeting" | `python -m audio_transcriber meeting stop` |
+| "start transcribing my meeting" / "capture this call" | `python -m audio_transcriber meeting start` |
+| "stop transcribing" / "save the meeting" | `python -m audio_transcriber meeting stop` |
 | "are you recording?" / "is anything being captured?" | `python -m audio_transcriber meeting status` |
 | "open the dashboard" / "show me my meetings" | open `http://127.0.0.1:8765/` in his default browser |
-| "what are my action items?" / "what's on my plate?" | `python -m audio_transcriber digest tasks` |
-| "what did we decide about X?" | `python -m audio_transcriber digest decisions --since YYYY-MM-DD` or search by keyword |
+| "what's pending synthesis?" / "anything not processed?" | `python -m audio_transcriber synthesize-pending --dry-run` |
+| "process pending meetings" / "digest the queue" | Tell him to open **Claude Desktop** and ask "list pending meetings and synthesize them" — that path uses his Pro/Max quota |
+| "what are my action items?" | `python -m audio_transcriber digest tasks` |
+| "what did we decide about X?" | `python -m audio_transcriber digest decisions` (or search by keyword) |
 | "what's my history with [person]?" | `python -m audio_transcriber digest person "Name"` |
 | "search my meetings for X" | `python -m audio_transcriber transcript search "X"` |
 | "import this VTT" (with a file path) | `python -m audio_transcriber ingest vtt "<path>"` |
-| "import this transcript I pasted" | `python -m audio_transcriber ingest teams-paste "<path>"` |
+| "import this pasted transcript" | `python -m audio_transcriber ingest teams-paste "<path>"` |
 
 ## What happens automatically (no Claude action needed)
 
-- **Teams meetings** — Microsoft Graph poller picks up new transcripts every 5 min. Don't try to "start recording" for a Teams meeting; it's already covered.
-- **Zoom meetings** — auto-capture-runner detects `Zoom.exe` starting and records WASAPI loopback automatically. The tray icon turns red. If the CEO asks "is it recording?", check `meeting status` — if it shows ACTIVE, it's working.
-- **Drop folders** — files dropped into `OneDrive\Audio_Transcriber\Drop_Recordings\` or `…\Drop_Transcripts\` are processed by the watchdog service.
+- **Teams meetings** — Microsoft Graph poller picks up new transcripts every 5 min and queues them as pending.
+- **Zoom meetings** — auto-capture-runner detects `Zoom.exe` and records WASAPI loopback. After it ends, Whisper transcribes and the meeting is queued as pending.
+- **Drop folders** — files dropped into `OneDrive\Audio_Transcriber\Drop_Recordings\` or `…\Drop_Transcripts\` are processed by the watchdog service and queued.
+- **3x-daily fallback** (07:00, 12:30, 18:00) — `AudioTranscriber_SynthFallback` scheduled task drains the queue via Anthropic API IF a key is configured. If no key, queue waits for Claude Desktop.
+
+## Pending vs synthesized
+
+Every meeting has a `synthesized: true/false` flag in its JSON. A meeting is "pending" until Claude Desktop (or the API fallback) fills in the title, summary, action items, decisions, and topics. The dashboard's Recent Meetings list shows pending ones with placeholder titles.
+
+If the CEO asks "why does this meeting look empty?" — the answer is: it hasn't been synthesized yet. Tell him to open Claude Desktop and ask it to process pending meetings.
 
 ## What NOT to do
 
 - Don't restart Windows scheduled tasks unless asked.
 - Don't delete files in `OneDrive\Audio_Transcriber\`.
-- Don't run `digest rebuild` casually — it re-spends API tokens on every meeting.
+- Don't run `digest rebuild` casually — it re-spends tokens/quota on every meeting.
 - Don't ask the CEO to install anything. If a command fails because a package is missing, tell him to call Tyler.
 
 ## After running commands
 
-- After `meeting start`: tell the CEO "Recording started. Just say 'stop transcribing' when you're done."
-- After `meeting stop`: read the saved path back, then tell him to refresh the dashboard if he wants to see it.
-- If a command fails, show the error output verbatim and tell him to send a screenshot to Tyler. Don't troubleshoot deeply — Tyler maintains this.
+- After `meeting start`: tell him "Recording started. Just say 'stop transcribing' when you're done."
+- After `meeting stop`: read the saved path back, then tell him the meeting is queued and will be synthesized by Claude Desktop (or the next scheduled fallback run).
+- If a command fails, show the error output verbatim and tell him to send a screenshot to Tyler.
 
 ## API keys + auth
 
-Keys live in Windows Credential Manager. If a command fails with "No Anthropic API key" or similar, the CEO can go to `http://127.0.0.1:8765/settings` and paste the key there. Don't ask him to set environment variables.
+- **OpenAI Whisper key** — required for audio inflows. Set via `http://127.0.0.1:8765/settings`.
+- **Anthropic Claude key** — OPTIONAL. Only needed for the 3x-daily API fallback. Primary synthesis is Claude Desktop.
+- **Microsoft Graph** — already authenticated during install (refresh token in Credential Manager).

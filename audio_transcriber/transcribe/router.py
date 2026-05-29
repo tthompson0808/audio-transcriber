@@ -1,15 +1,18 @@
-"""Transcription router — turns any audio inflow into a saved meeting.
+"""Transcription router — turns any audio inflow into a SAVED-BUT-PENDING meeting.
+
+Whisper still runs here (speech-to-text). Claude synthesis (title, summary,
+action items, decisions) is deferred to Claude Desktop or the API fallback —
+see synthesize/pending.py.
 
 Used by:
   - WASAPI recorder (inflow 2: auto-record Zoom)
   - Dropzone watcher when an audio/video file is dropped (inflow 3)
-  - CLI 'meeting stop' (manual Claude-driven trigger)
+  - CLI 'meeting stop' (manual Claude Code trigger)
 """
 import os
 from datetime import datetime
 
 from audio_transcriber.storage.manager import save_meeting
-from audio_transcriber.synthesize.claude import summarize_transcript
 from audio_transcriber.transcribe.whisper_cloud import transcribe_file
 
 
@@ -21,7 +24,7 @@ def transcribe_and_save(
     title_hint: str | None = None,
     duration_seconds: int = 0,
 ) -> str:
-    """Run an audio file end-to-end: Whisper -> Claude -> stored meeting.
+    """Run an audio file: Whisper -> saved meeting (synthesis pending).
 
     `source` is one of: "whisper_recording" (WASAPI), "whisper_dropzone" (file drop).
     """
@@ -31,9 +34,6 @@ def transcribe_and_save(
     if not text.strip():
         print("Whisper returned empty transcript — saving an empty-meeting stub.")
 
-    synth = summarize_transcript(text, cfg, has_speakers=False)
-    title = title_hint or synth["title"]
-
     now = datetime.now()
     meeting_data = {
         "source": source,
@@ -42,12 +42,12 @@ def transcribe_and_save(
         "start_time": now.strftime("%H:%M:%S"),
         "end_time": None,
         "duration_seconds": duration_seconds,
-        "title": title,
+        "title": title_hint or f"Untitled — {os.path.basename(audio_path)}",
         "app_name": app_name,
         "participants": [],
-        "summary": synth["summary"],
-        "action_items": synth["action_items"],
-        "utterances": synth["utterances"] or [
+        "summary": "",  # synthesis pending — Claude Desktop or API fallback fills this in
+        "action_items": [],
+        "utterances": [
             {"speaker": "Unknown", "start": None, "end": None, "text": text}
         ],
         "has_speakers": False,
