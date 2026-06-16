@@ -70,13 +70,19 @@ def _fmt_ts(seconds: float) -> str:
 
 def _transcribe_array(model, audio, cfg: dict, speaker: str) -> list[dict]:
     t = cfg.get("transcribe", {})
-    segments, _info = model.transcribe(
-        audio,
-        language=t.get("language", "en"),
-        vad_filter=t.get("vad_filter", False),
-    )
+    lang = t.get("language", "en")
+    want_vad = t.get("vad_filter", True)
+    try:
+        segments, _info = model.transcribe(audio, language=lang, vad_filter=want_vad)
+        segs = list(segments)  # force inference now so a VAD error surfaces here
+    except Exception as e:
+        if not want_vad:
+            raise
+        print(f"VAD unavailable ({e}); transcribing without it.")
+        segments, _info = model.transcribe(audio, language=lang, vad_filter=False)
+        segs = list(segments)
     out = []
-    for seg in segments:  # generator — iterating is what runs inference
+    for seg in segs:
         text = (seg.text or "").strip()
         if not text:
             continue
@@ -91,26 +97,40 @@ def _transcribe_array(model, audio, cfg: dict, speaker: str) -> list[dict]:
     return out
 
 
-def _similar(a: str, b: str) -> float:
-    return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio()
+def _text_echo(a: str, b: str, ratio_thr: float, token_thr: float) -> bool:
+    """True if `a` looks like an echo of `b`.
+
+    Two complementary tests: a full-string fuzzy ratio (catches near-identical
+    lines) OR token containment (catches the case where the mic only caught a
+    fragment/prefix of what the speakers played, e.g. "it's crazy you built this"
+    vs "it's crazy you built this, it's like teams, but you just made it").
+    """
+    a, b = a.lower(), b.lower()
+    if difflib.SequenceMatcher(None, a, b).ratio() >= ratio_thr:
+        return True
+    at, bt = set(a.split()), set(b.split())
+    if at and bt and len(at & bt) / min(len(at), len(bt)) >= token_thr:
+        return True
+    return False
 
 
 def _dedup_echo(owner_utts: list[dict], remote_utts: list[dict], cap: dict) -> tuple[list[dict], int]:
     """Drop owner (mic) utterances that echo a remote (loopback) utterance.
 
     An owner utterance is an echo if it overlaps a remote utterance in time
-    (within tolerance) and their text is similar enough. The loopback is the
-    clean source, so the remote copy is the one we keep.
+    (within tolerance) and their text matches. The loopback is the clean source,
+    so the remote copy is the one we keep.
     """
     ed = cap.get("echo_dedup", {})
-    thr = ed.get("similarity", 0.6)
+    ratio_thr = ed.get("similarity", 0.6)
+    token_thr = ed.get("token_overlap", 0.7)
     tol = ed.get("time_tolerance_s", 2.0)
     kept, dropped = [], 0
     for o in owner_utts:
         is_echo = any(
             o["_start_s"] <= r["_end_s"] + tol
             and o["_end_s"] >= r["_start_s"] - tol
-            and _similar(o["text"], r["text"]) >= thr
+            and _text_echo(o["text"], r["text"], ratio_thr, token_thr)
             for r in remote_utts
         )
         if is_echo:

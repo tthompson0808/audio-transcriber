@@ -55,7 +55,8 @@ DEFAULT_CONFIG = {
         # remote audio, so drop mic utterances that echo it (same words, same time).
         "echo_dedup": {
             "enabled": True,
-            "similarity": 0.6,       # 0..1 fuzzy text match to call it an echo
+            "similarity": 0.6,       # 0..1 full-string fuzzy match to call it an echo
+            "token_overlap": 0.7,    # OR: share of the shorter line's words found in the other
             "time_tolerance_s": 2.0, # allow for the acoustic + buffer delay
         },
     },
@@ -66,7 +67,7 @@ DEFAULT_CONFIG = {
         "device": "cpu",
         "compute_type": "int8",
         "language": "en",
-        "vad_filter": False,       # enable later to suppress silence-hallucinations (pulls onnxruntime)
+        "vad_filter": True,        # drop silence → fewer hallucinations + tighter timestamps
     },
     "teams_detect": {
         "method": "mic",           # "mic" = Teams using the microphone (best) | "render" = using speakers
