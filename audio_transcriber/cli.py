@@ -120,6 +120,10 @@ def cmd_set_config(args, cfg):
         try:
             return int(v)
         except ValueError:
+            pass
+        try:
+            return float(v)
+        except ValueError:
             return v
 
     c = load_config()
