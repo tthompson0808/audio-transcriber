@@ -51,6 +51,13 @@ DEFAULT_CONFIG = {
         "owner_name": "Me",        # left-channel speaker label (set to the laptop owner, e.g. "Tyson")
         "remote_name": "Remote",   # right-channel speaker label (the other participants)
         "target_sample_rate": 16000,  # final WAV rate fed to the recognizer
+        # Laptop speakers bleed into the mic. The loopback is a clean copy of the
+        # remote audio, so drop mic utterances that echo it (same words, same time).
+        "echo_dedup": {
+            "enabled": True,
+            "similarity": 0.6,       # 0..1 fuzzy text match to call it an echo
+            "time_tolerance_s": 2.0, # allow for the acoustic + buffer delay
+        },
     },
     "transcribe": {
         "engine": "local",         # "local" (faster-whisper, no API key) | "cloud" (OpenAI Whisper)

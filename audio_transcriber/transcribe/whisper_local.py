@@ -8,6 +8,7 @@ two-way speaker separation without a diarization model.
 faster-whisper is fed a float32 numpy array at 16 kHz, so PyAV/ffmpeg decoding
 is never exercised at run time (one less moving part on a locked-down machine).
 """
+import difflib
 import wave
 
 try:
@@ -85,8 +86,38 @@ def _transcribe_array(model, audio, cfg: dict, speaker: str) -> list[dict]:
             "end": _fmt_ts(seg.end),
             "text": text,
             "_start_s": float(seg.start),
+            "_end_s": float(seg.end),
         })
     return out
+
+
+def _similar(a: str, b: str) -> float:
+    return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+
+def _dedup_echo(owner_utts: list[dict], remote_utts: list[dict], cap: dict) -> tuple[list[dict], int]:
+    """Drop owner (mic) utterances that echo a remote (loopback) utterance.
+
+    An owner utterance is an echo if it overlaps a remote utterance in time
+    (within tolerance) and their text is similar enough. The loopback is the
+    clean source, so the remote copy is the one we keep.
+    """
+    ed = cap.get("echo_dedup", {})
+    thr = ed.get("similarity", 0.6)
+    tol = ed.get("time_tolerance_s", 2.0)
+    kept, dropped = [], 0
+    for o in owner_utts:
+        is_echo = any(
+            o["_start_s"] <= r["_end_s"] + tol
+            and o["_end_s"] >= r["_start_s"] - tol
+            and _similar(o["text"], r["text"]) >= thr
+            for r in remote_utts
+        )
+        if is_echo:
+            dropped += 1
+        else:
+            kept.append(o)
+    return kept, dropped
 
 
 def transcribe_auto(wav_path: str, cfg: dict) -> tuple[list[dict], bool, list[str]]:
@@ -105,16 +136,23 @@ def transcribe_auto(wav_path: str, cfg: dict) -> tuple[list[dict], bool, list[st
     if len(channels) >= 2 and cap.get("stereo", True):
         owner = cap.get("owner_name", "Me")
         remote = cap.get("remote_name", "Remote")
-        utterances = (
-            _transcribe_array(model, channels[0], cfg, owner)
-            + _transcribe_array(model, channels[1], cfg, remote)
-        )
+        owner_utts = _transcribe_array(model, channels[0], cfg, owner)
+        remote_utts = _transcribe_array(model, channels[1], cfg, remote)
+
+        if cap.get("echo_dedup", {}).get("enabled", True):
+            owner_utts, dropped = _dedup_echo(owner_utts, remote_utts, cap)
+            if dropped:
+                print(f"Echo dedup: dropped {dropped} mic utterance(s) that echoed the speakers.")
+
+        utterances = owner_utts + remote_utts
         utterances.sort(key=lambda u: u["_start_s"])
         for u in utterances:
             u.pop("_start_s", None)
+            u.pop("_end_s", None)
         return utterances, True, [owner, remote]
 
     utterances = _transcribe_array(model, channels[0], cfg, "Unknown")
     for u in utterances:
         u.pop("_start_s", None)
+        u.pop("_end_s", None)
     return utterances, False, []
