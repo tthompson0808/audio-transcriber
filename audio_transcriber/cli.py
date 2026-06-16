@@ -79,16 +79,57 @@ def cmd_record_test(args, cfg):
     print(f"  LEFT  (mic / owner)  RMS: {lv['left_rms']:.4f}  {'OK' if lv['left_rms'] > 0.001 else '← SILENT'}")
     print(f"  RIGHT (loopback/them) RMS: {lv['right_rms']:.4f}  {'OK' if lv['right_rms'] > 0.001 else '← SILENT'}")
     print(f"\nSaved: {out}")
-    print("Next: python -m audio_transcriber transcribe-local \"%s\"" % out)
+    print("Next: python -m audio_transcriber transcribe-local --last")
 
 
 def cmd_transcribe_local(args, cfg):
     """On-device transcription test — prints utterances, no API key, no save."""
+    import glob
     from audio_transcriber.transcribe.whisper_local import transcribe_auto
     from audio_transcriber.ingest.vtt_parser import utterances_to_plain_text
-    utterances, has_speakers, participants = transcribe_auto(args.path, cfg)
+    from audio_transcriber.config import get_local_dir
+
+    path = args.path
+    if args.last or not path:
+        recs = sorted(glob.glob(os.path.join(get_local_dir(cfg), "recordings", "*.wav")),
+                      key=os.path.getmtime)
+        if not recs:
+            print("No recordings found — run `record-test` first.")
+            return
+        path = recs[-1]
+        print(f"Using latest recording: {path}")
+    utterances, has_speakers, participants = transcribe_auto(path, cfg)
     print(f"speakers={has_speakers}  participants={participants}  utterances={len(utterances)}\n")
     print(utterances_to_plain_text(utterances) or "(empty transcript)")
+
+
+def cmd_set_config(args, cfg):
+    """Set a dotted config key, e.g. `set-config transcribe.model_dir C:\\path`.
+
+    Quote-free on purpose: values with no spaces need no quoting in PowerShell,
+    which avoids the smart-quote breakage that copy-pasting from email can cause.
+    """
+    from audio_transcriber.config import load_config, save_config
+
+    def coerce(v: str):
+        low = v.lower()
+        if low in ("none", "null"):
+            return None
+        if low in ("true", "false"):
+            return low == "true"
+        try:
+            return int(v)
+        except ValueError:
+            return v
+
+    c = load_config()
+    keys = args.key.split(".")
+    node = c
+    for k in keys[:-1]:
+        node = node.setdefault(k, {})
+    node[keys[-1]] = coerce(args.value)
+    save_config(c)
+    print(f"set {args.key} = {node[keys[-1]]!r}")
 
 
 def cmd_stage_model(args, cfg):
@@ -291,7 +332,8 @@ def main():
     rt.add_argument("--out", default=None, help="Output WAV path (default: recordings dir)")
 
     tl = sub.add_parser("transcribe-local", help="On-device transcribe a WAV (no key, no save)")
-    tl.add_argument("path")
+    tl.add_argument("path", nargs="?", default=None, help="WAV path (omit with --last)")
+    tl.add_argument("--last", action="store_true", help="Transcribe the most recent recording")
 
     sm = sub.add_parser("stage-model", help="Download a faster-whisper model for offline use")
     sm.add_argument("--model", default="small.en", help="tiny.en|base.en|small.en|medium.en|large-v3")
@@ -335,6 +377,10 @@ def main():
     sk.add_argument("provider", choices=["anthropic", "openai"])
     sk.add_argument("value")
 
+    scfg = sub.add_parser("set-config", help="Set a dotted config key (e.g. transcribe.model_dir <path>)")
+    scfg.add_argument("key")
+    scfg.add_argument("value")
+
     sp = sub.add_parser("synthesize-pending", help="Synthesize queued meetings via Anthropic API (fallback path)")
     sp.add_argument("--dry-run", action="store_true", help="Just list what would be processed")
     sp.add_argument("--id", nargs="*", help="Specific meeting IDs to process (default: all pending)")
@@ -353,6 +399,7 @@ def main():
         "devices": cmd_devices,
         "record-test": cmd_record_test,
         "transcribe-local": cmd_transcribe_local,
+        "set-config": cmd_set_config,
         "stage-model": cmd_stage_model,
         "teams-detect": cmd_teams_detect,
         "teams-auto": cmd_teams_auto,
