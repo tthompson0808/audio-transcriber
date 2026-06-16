@@ -67,6 +67,33 @@ def _is_teams(pid: int, name: str, cfg: dict) -> bool:
         return True
     if substr and (substr in path or substr in name):
         return True
+    # New Teams is multi-process (ms-teams.exe + msedgewebview2.exe children).
+    # If the audio-session owner is a descendant of a Teams process, count it —
+    # this catches the case where a WebView2 child holds the mic.
+    return _has_teams_ancestor(pid, names, substr)
+
+
+def _has_teams_ancestor(pid: int, names: list[str], substr: str) -> bool:
+    if not pid or psutil is None:
+        return False
+    try:
+        proc = psutil.Process(pid)
+    except Exception:
+        return False
+    for _ in range(6):  # walk up a few levels; cap to avoid surprises
+        try:
+            proc = proc.parent()
+        except Exception:
+            return False
+        if proc is None:
+            return False
+        try:
+            an = (proc.name() or "").lower()
+            ap = (proc.exe() or "").lower()
+        except Exception:
+            an = ap = ""
+        if an in names or (substr and (substr in ap or substr in an)):
+            return True
     return False
 
 
