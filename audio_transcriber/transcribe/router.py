@@ -16,6 +16,23 @@ from audio_transcriber.storage.manager import save_meeting
 from audio_transcriber.transcribe.whisper_cloud import transcribe_file
 
 
+def _transcribe(audio_path: str, cfg: dict) -> tuple[list[dict], bool, list[str]]:
+    """Speech-to-text → (utterances, has_speakers, participants).
+
+    engine="local" → faster-whisper on-device (no key); stereo gives owner/remote labels.
+    engine="cloud" → OpenAI Whisper API (needs key); one flat 'Unknown' utterance.
+    """
+    engine = cfg.get("transcribe", {}).get("engine", "local")
+    if engine == "local":
+        from audio_transcriber.transcribe.whisper_local import transcribe_auto
+        print(f"Transcribing {os.path.basename(audio_path)} on-device (faster-whisper)...")
+        return transcribe_auto(audio_path, cfg)
+
+    print(f"Transcribing {os.path.basename(audio_path)} via Whisper API...")
+    text = transcribe_file(audio_path)
+    return [{"speaker": "Unknown", "start": None, "end": None, "text": text}], False, []
+
+
 def transcribe_and_save(
     audio_path: str,
     cfg: dict,
@@ -24,15 +41,14 @@ def transcribe_and_save(
     title_hint: str | None = None,
     duration_seconds: int = 0,
 ) -> str:
-    """Run an audio file: Whisper -> saved meeting (synthesis pending).
+    """Run an audio file: speech-to-text -> saved meeting (synthesis pending).
 
     `source` is one of: "whisper_recording" (WASAPI), "whisper_dropzone" (file drop).
     """
-    print(f"Transcribing {os.path.basename(audio_path)} via Whisper API...")
-    text = transcribe_file(audio_path)
+    utterances, has_speakers, participants = _transcribe(audio_path, cfg)
 
-    if not text.strip():
-        print("Whisper returned empty transcript — saving an empty-meeting stub.")
+    if not any(u.get("text", "").strip() for u in utterances):
+        print("Transcript came back empty — saving an empty-meeting stub.")
 
     now = datetime.now()
     meeting_data = {
@@ -44,13 +60,11 @@ def transcribe_and_save(
         "duration_seconds": duration_seconds,
         "title": title_hint or f"Untitled — {os.path.basename(audio_path)}",
         "app_name": app_name,
-        "participants": [],
+        "participants": participants,
         "summary": "",  # synthesis pending — Claude Desktop or API fallback fills this in
         "action_items": [],
-        "utterances": [
-            {"speaker": "Unknown", "start": None, "end": None, "text": text}
-        ],
-        "has_speakers": False,
+        "utterances": utterances,
+        "has_speakers": has_speakers,
         "audio_path": audio_path,
     }
 

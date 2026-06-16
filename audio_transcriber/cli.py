@@ -55,6 +55,58 @@ def cmd_ingest(args, cfg):
         print(f"Saved → {path}")
 
 
+def cmd_devices(args, cfg):
+    """List mic + loopback audio devices on this machine (run first on new hardware)."""
+    from audio_transcriber.capture.audio_devices import print_devices
+    print_devices()
+
+
+def cmd_record_test(args, cfg):
+    """Record a few seconds of mic+loopback and report per-channel signal levels."""
+    import time
+    from audio_transcriber.capture.wasapi_recorder import DualStreamRecorder, new_recording_path
+    from audio_transcriber.config import get_local_dir
+
+    out = args.out or new_recording_path(get_local_dir(cfg))
+    rec = DualStreamRecorder(out, cfg)
+    print(f"Recording {args.seconds}s → {out}")
+    print("Talk into the mic AND play some audio (or be in a call) so both channels get signal...")
+    rec.start()
+    time.sleep(args.seconds)
+    rec.stop()
+    lv = rec.levels
+    print(f"\nChannels written: {lv['channels']}")
+    print(f"  LEFT  (mic / owner)  RMS: {lv['left_rms']:.4f}  {'OK' if lv['left_rms'] > 0.001 else '← SILENT'}")
+    print(f"  RIGHT (loopback/them) RMS: {lv['right_rms']:.4f}  {'OK' if lv['right_rms'] > 0.001 else '← SILENT'}")
+    print(f"\nSaved: {out}")
+    print("Next: python -m audio_transcriber transcribe-local \"%s\"" % out)
+
+
+def cmd_transcribe_local(args, cfg):
+    """On-device transcription test — prints utterances, no API key, no save."""
+    from audio_transcriber.transcribe.whisper_local import transcribe_auto
+    from audio_transcriber.ingest.vtt_parser import utterances_to_plain_text
+    utterances, has_speakers, participants = transcribe_auto(args.path, cfg)
+    print(f"speakers={has_speakers}  participants={participants}  utterances={len(utterances)}\n")
+    print(utterances_to_plain_text(utterances) or "(empty transcript)")
+
+
+def cmd_stage_model(args, cfg):
+    """Download a faster-whisper model snapshot for offline use on a firewalled box.
+
+    Run this on a machine WITH internet (e.g. the Mac), then copy --out to the
+    target laptop and set transcribe.model_dir to that path.
+    """
+    from huggingface_hub import snapshot_download
+    from audio_transcriber.transcribe.whisper_local import MODEL_REPOS
+    repo = MODEL_REPOS.get(args.model, args.model)
+    print(f"Downloading {repo} → {args.out}")
+    path = snapshot_download(repo_id=repo, local_dir=args.out)
+    print(f"Done. Copy this folder to the target machine, then set in config.json:")
+    print(f'  "transcribe": {{ "model_dir": "<path-on-target>" }}')
+    print(f"Staged at: {path}")
+
+
 def cmd_graph_poll(args, cfg):
     from audio_transcriber.capture.graph_poller import poll_once
     count = poll_once(cfg, lookback_days=args.lookback)
@@ -213,6 +265,19 @@ def main():
     ig_a = ig_sub.add_parser("audio", help="Transcribe a dropped audio/video file via Whisper")
     ig_a.add_argument("path")
 
+    sub.add_parser("devices", help="List mic + loopback audio devices (run first on new hardware)")
+
+    rt = sub.add_parser("record-test", help="Record a few seconds of mic+loopback and report levels")
+    rt.add_argument("--seconds", type=int, default=15)
+    rt.add_argument("--out", default=None, help="Output WAV path (default: recordings dir)")
+
+    tl = sub.add_parser("transcribe-local", help="On-device transcribe a WAV (no key, no save)")
+    tl.add_argument("path")
+
+    sm = sub.add_parser("stage-model", help="Download a faster-whisper model for offline use")
+    sm.add_argument("--model", default="small.en", help="tiny.en|base.en|small.en|medium.en|large-v3")
+    sm.add_argument("--out", required=True, help="Target folder for the model snapshot")
+
     gp = sub.add_parser("graph-poll", help="One Graph poll for new Teams transcripts")
     gp.add_argument("--lookback", type=int, default=7)
 
@@ -260,6 +325,10 @@ def main():
     dispatch = {
         "meeting": cmd_meeting,
         "ingest": cmd_ingest,
+        "devices": cmd_devices,
+        "record-test": cmd_record_test,
+        "transcribe-local": cmd_transcribe_local,
+        "stage-model": cmd_stage_model,
         "graph-poll": cmd_graph_poll,
         "graph-auth": cmd_graph_auth,
         "transcript": cmd_transcript,
