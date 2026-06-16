@@ -62,10 +62,11 @@ DEFAULT_CONFIG = {
         "vad_filter": False,       # enable later to suppress silence-hallucinations (pulls onnxruntime)
     },
     "teams_detect": {
+        "method": "mic",           # "mic" = Teams using the microphone (best) | "render" = using speakers
         "process_match": ["ms-teams.exe", "teams.exe"],  # matched case-insensitively
         "path_substr": "Teams",    # extra guard so we match the Teams process tree, not look-alikes
         "poll_interval_seconds": 2,
-        "min_active_seconds": 3,   # mic must be held this long before we call it a meeting
+        "min_active_seconds": 3,   # endpoint must stay ACTIVE/INACTIVE this long before we flip state
     },
     "graph": {
         "poll_interval_seconds": 300,

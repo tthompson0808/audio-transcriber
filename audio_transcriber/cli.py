@@ -107,6 +107,25 @@ def cmd_stage_model(args, cfg):
     print(f"Staged at: {path}")
 
 
+def cmd_teams_detect(args, cfg):
+    """Watch (or one-shot check) whether Teams is in a meeting (mic-in-use)."""
+    from audio_transcriber.capture import teams_session_detector as tsd
+    if args.watch:
+        tsd.watch(cfg)
+    else:
+        active = tsd.teams_meeting_active(cfg)
+        print(f"Teams meeting active: {active}")
+        print("\nMIC sessions:")
+        for pid, name, state in tsd.capture_sessions():
+            print(f"  pid={pid} {name} {tsd._STATE_NAME.get(state, state)}")
+
+
+def cmd_teams_auto(args, cfg):
+    """Run the Teams auto-capture loop (detect → stereo record → local transcribe)."""
+    from audio_transcriber.capture.teams_auto import serve
+    serve(cfg)
+
+
 def cmd_graph_poll(args, cfg):
     from audio_transcriber.capture.graph_poller import poll_once
     count = poll_once(cfg, lookback_days=args.lookback)
@@ -278,6 +297,12 @@ def main():
     sm.add_argument("--model", default="small.en", help="tiny.en|base.en|small.en|medium.en|large-v3")
     sm.add_argument("--out", required=True, help="Target folder for the model snapshot")
 
+    tdp = sub.add_parser("teams-detect", help="Detect whether Teams is in a meeting (mic-in-use)")
+    tdp.add_argument("--watch", action="store_true", help="Live monitor — join/leave a call to see it flip")
+
+    tap = sub.add_parser("teams-auto", help="Run the Teams auto-capture loop (detect→record→transcribe)")
+    tap.add_argument("mode", nargs="?", default="serve", choices=["serve"])
+
     gp = sub.add_parser("graph-poll", help="One Graph poll for new Teams transcripts")
     gp.add_argument("--lookback", type=int, default=7)
 
@@ -329,6 +354,8 @@ def main():
         "record-test": cmd_record_test,
         "transcribe-local": cmd_transcribe_local,
         "stage-model": cmd_stage_model,
+        "teams-detect": cmd_teams_detect,
+        "teams-auto": cmd_teams_auto,
         "graph-poll": cmd_graph_poll,
         "graph-auth": cmd_graph_auth,
         "transcript": cmd_transcript,
