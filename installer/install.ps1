@@ -84,20 +84,24 @@ Write-Step "Installing audio_transcriber + deps"
 & $pipExe install --quiet --no-deps -e "$RepoPath"
 Write-Ok "Dependencies installed"
 
-# --- 4. OneDrive folders ---
-Write-Step "Creating OneDrive data folders"
+# --- 4. Data folder (prompt for save location) ---
+Write-Step "Choosing where meeting transcripts are saved"
 $onedrive = $env:OneDriveCommercial
 if (-not $onedrive) { $onedrive = $env:OneDrive }
 if (-not $onedrive -or -not (Test-Path $onedrive)) {
-    Write-Warn "OneDrive not detected — falling back to $env:USERPROFILE"
+    Write-Warn "OneDrive not detected — defaulting to $env:USERPROFILE"
     $onedrive = $env:USERPROFILE
 }
-$dataRoot = Join-Path $onedrive "Audio_Transcriber"
+$defaultData = Join-Path $onedrive "Audio_Transcriber"
+Write-Host ""
+$answer = Read-Host "  Where should meeting transcripts be saved? Press Enter for default`n  [$defaultData]"
+if ([string]::IsNullOrWhiteSpace($answer)) { $dataRoot = $defaultData } else { $dataRoot = $answer.Trim('"').Trim() }
 foreach ($sub in @("meetings", "Drop_Recordings", "Drop_Transcripts", "logs")) {
-    $p = Join-Path $dataRoot $sub
-    New-Item -ItemType Directory -Path $p -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $dataRoot $sub) -Force | Out-Null
 }
-Write-Ok "Data root: $dataRoot"
+# Persist the choice so the app writes there (data_dir in config.json).
+& $pyExe -m audio_transcriber set-config data_dir "$dataRoot" | Out-Null
+Write-Ok "Transcripts will be saved to: $dataRoot"
 
 # --- 5. Scheduled tasks ---
 Write-Step "Registering scheduled tasks"
@@ -111,9 +115,9 @@ function Register-Or-Update-Task($name, $action, $trigger, $desc) {
         -RunLevel Limited | Out-Null
 }
 
-$autoAction = New-ScheduledTaskAction -Execute $pyExe -Argument "-m audio_transcriber.auto_capture_runner serve"
+$autoAction = New-ScheduledTaskAction -Execute $pyExe -Argument "-m audio_transcriber teams-auto serve"
 $autoTrigger = New-ScheduledTaskTrigger -AtLogOn
-Register-Or-Update-Task "AudioTranscriber_AutoCapture" $autoAction $autoTrigger "Auto-record running Zoom meetings via WASAPI"
+Register-Or-Update-Task "AudioTranscriber_AutoCapture" $autoAction $autoTrigger "Auto-capture Teams meetings (stereo, on-device transcription)"
 
 $graphAction = New-ScheduledTaskAction -Execute $pyExe -Argument "-m audio_transcriber graph-poll --lookback 1"
 $graphTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)

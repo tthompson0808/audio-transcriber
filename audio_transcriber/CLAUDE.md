@@ -11,6 +11,9 @@ This file teaches Claude Code (running on the CEO's Windows laptop) how to drive
 | "start transcribing my meeting" / "capture this call" | `python -m audio_transcriber meeting start` |
 | "stop transcribing" / "save the meeting" | `python -m audio_transcriber meeting stop` |
 | "are you recording?" / "is anything being captured?" | `python -m audio_transcriber meeting status` |
+| "turn off transcription" / "stop auto-recording my meetings" | `python -m audio_transcriber teams-auto pause` |
+| "turn transcription back on" / "resume auto-recording" | `python -m audio_transcriber teams-auto resume` |
+| "is auto-transcription on?" | `python -m audio_transcriber teams-auto status` |
 | "open the dashboard" / "show me my meetings" | open `http://127.0.0.1:8765/` in his default browser |
 | "what's pending synthesis?" / "anything not processed?" | `python -m audio_transcriber synthesize-pending --dry-run` |
 | "process pending meetings" / "digest the queue" | Tell him to open **Claude Desktop** and ask "list pending meetings and synthesize them" — that path uses his Pro/Max quota |
@@ -23,7 +26,7 @@ This file teaches Claude Code (running on the CEO's Windows laptop) how to drive
 
 ## What happens automatically (no Claude action needed)
 
-- **Teams meetings** — Microsoft Graph poller picks up new transcripts every 5 min and queues them as pending.
+- **Teams meetings** — the always-on auto-capture loop detects when Teams is in a call (mic in use), records both sides in stereo (his mic + the other participants), transcribes on-device with no API key, and queues the meeting as pending. It is **ON at every startup**; the CEO can turn it off/on with the commands above (off persists until he turns it back on or the laptop restarts).
 - **Zoom meetings** — auto-capture-runner detects `Zoom.exe` and records WASAPI loopback. After it ends, Whisper transcribes and the meeting is queued as pending.
 - **Drop folders** — files dropped into `OneDrive\Audio_Transcriber\Drop_Recordings\` or `…\Drop_Transcripts\` are processed by the watchdog service and queued.
 - **3x-daily fallback** (07:00, 12:30, 18:00) — `AudioTranscriber_SynthFallback` scheduled task drains the queue via Anthropic API IF a key is configured. If no key, queue waits for Claude Desktop.

@@ -166,9 +166,10 @@ def cmd_teams_detect(args, cfg):
 
 
 def cmd_teams_auto(args, cfg):
-    """Run the Teams auto-capture loop (detect → stereo record → local transcribe)."""
-    from audio_transcriber.capture.teams_auto import serve
-    serve(cfg)
+    """Run or control the Teams auto-capture loop."""
+    from audio_transcriber.capture import teams_auto as ta
+    mode = getattr(args, "mode", "serve")
+    {"serve": ta.serve, "pause": ta.pause, "resume": ta.resume, "status": ta.status}[mode](cfg)
 
 
 def cmd_graph_poll(args, cfg):
@@ -346,8 +347,10 @@ def main():
     tdp = sub.add_parser("teams-detect", help="Detect whether Teams is in a meeting (mic-in-use)")
     tdp.add_argument("--watch", action="store_true", help="Live monitor — join/leave a call to see it flip")
 
-    tap = sub.add_parser("teams-auto", help="Run the Teams auto-capture loop (detect→record→transcribe)")
-    tap.add_argument("mode", nargs="?", default="serve", choices=["serve"])
+    tap = sub.add_parser("teams-auto", help="Run/control the Teams auto-capture loop")
+    tap.add_argument("mode", nargs="?", default="serve",
+                     choices=["serve", "pause", "resume", "status"],
+                     help="serve (run loop) | pause (off) | resume (on) | status")
 
     gp = sub.add_parser("graph-poll", help="One Graph poll for new Teams transcripts")
     gp.add_argument("--lookback", type=int, default=7)

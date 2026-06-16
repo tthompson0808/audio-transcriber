@@ -11,6 +11,7 @@ Debounce is symmetric: the endpoint must stay ACTIVE for `min_active_seconds`
 before we start, and stay INACTIVE that long before we stop — so a notification
 ding or a momentary silence never flaps the recorder.
 """
+import os
 import time
 
 from audio_transcriber.capture.teams_session_detector import teams_meeting_active
@@ -24,6 +25,44 @@ except ImportError:
     comtypes = None
 
 
+# --- On/off control -------------------------------------------------------- #
+# A flag file lets a separate process (the CEO saying "turn off transcription"
+# to Claude) pause the long-lived serve loop. The loop honors it every tick.
+# serve() clears it on startup, so a restart always comes back ON.
+_PAUSE_FLAG = "auto_paused.flag"
+
+
+def _pause_flag_path(cfg: dict) -> str:
+    return os.path.join(get_local_dir(cfg), _PAUSE_FLAG)
+
+
+def is_paused(cfg: dict) -> bool:
+    return os.path.exists(_pause_flag_path(cfg))
+
+
+def _clear_pause(cfg: dict) -> None:
+    p = _pause_flag_path(cfg)
+    if os.path.exists(p):
+        os.remove(p)
+
+
+def pause(cfg: dict) -> None:
+    p = _pause_flag_path(cfg)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w") as f:
+        f.write("paused")
+    print("Transcription OFF. It stays off until you turn it back on, or until the next restart.")
+
+
+def resume(cfg: dict) -> None:
+    _clear_pause(cfg)
+    print("Transcription ON.")
+
+
+def status(cfg: dict) -> None:
+    print("Transcription is OFF (paused)." if is_paused(cfg) else "Transcription is ON.")
+
+
 def serve(cfg: dict) -> None:
     if comtypes is not None:
         try:
@@ -31,10 +70,12 @@ def serve(cfg: dict) -> None:
         except Exception:
             pass
 
+    _clear_pause(cfg)  # always start ON ("turn on again ... on next start")
+
     td = cfg.get("teams_detect", {})
     interval = td.get("poll_interval_seconds", 2)
     debounce = td.get("min_active_seconds", 3)
-    print(f"Teams auto-capture started (poll {interval}s, debounce {debounce}s, "
+    print(f"Teams auto-capture started, ON (poll {interval}s, debounce {debounce}s, "
           f"method '{td.get('method', 'mic')}')")
 
     recorder = None
@@ -44,6 +85,17 @@ def serve(cfg: dict) -> None:
 
     try:
         while True:
+            if is_paused(cfg):
+                if recorder is not None:
+                    print("Turned off — finalizing the current recording.")
+                    try:
+                        _finish(recorder, path, cfg)
+                    except Exception as e:
+                        print(f"Finalize error: {e}")
+                    recorder, path = None, None
+                active_since = inactive_since = None
+                time.sleep(interval)
+                continue
             try:
                 active = teams_meeting_active(cfg)
                 now = time.monotonic()
