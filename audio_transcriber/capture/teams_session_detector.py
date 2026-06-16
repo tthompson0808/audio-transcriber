@@ -189,21 +189,24 @@ def watch(cfg: dict) -> None:
     print(f"Watching audio sessions (verdict method = '{method}'). "
           f"Join a Teams call, then leave it. Ctrl+C to stop.\n")
     last = None
-    while True:
-        cap = capture_sessions()
-        ren = render_sessions()
-        verdict = teams_meeting_active(cfg)
-        if verdict != last:
-            print(f"\n>>> MEETING {'ACTIVE' if verdict else 'ENDED / IDLE'} <<<\n")
-            last = verdict
-        for tag, sess in (("MIC", cap), ("OUT", ren)):
-            for pid, name, state in sess:
-                is_t = _is_teams(pid, name, cfg)
-                if is_t or state == _ACTIVE:
-                    print(f"  {tag} pid={pid:<6} {name:<22} {_STATE_NAME.get(state, state):<9}"
-                          f"{'  <-- TEAMS' if is_t else ''}")
-        print("-" * 48)
-        time.sleep(interval)
+    try:
+        while True:
+            cap = capture_sessions()
+            ren = render_sessions()
+            verdict = teams_meeting_active(cfg)
+            if verdict != last:
+                print(f"\n>>> MEETING {'ACTIVE' if verdict else 'ENDED / IDLE'} <<<\n")
+                last = verdict
+            for tag, sess in (("MIC", cap), ("OUT", ren)):
+                for pid, name, state in sess:
+                    is_t = _is_teams(pid, name, cfg)
+                    if is_t or state == _ACTIVE:
+                        print(f"  {tag} pid={pid:<6} {name:<22} {_STATE_NAME.get(state, state):<9}"
+                              f"{'  <-- TEAMS' if is_t else ''}")
+            print("-" * 48)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nStopped watching.")
 
 
 if __name__ == "__main__":

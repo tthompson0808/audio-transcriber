@@ -42,30 +42,36 @@ def serve(cfg: dict) -> None:
     active_since = None
     inactive_since = None
 
-    while True:
-        try:
-            active = teams_meeting_active(cfg)
-            now = time.monotonic()
+    try:
+        while True:
+            try:
+                active = teams_meeting_active(cfg)
+                now = time.monotonic()
 
-            if active:
-                inactive_since = None
-                if recorder is None:
-                    active_since = active_since or now
-                    if now - active_since >= debounce:
-                        path = new_recording_path(get_local_dir(cfg))
-                        recorder = DualStreamRecorder(path, cfg)
-                        recorder.start()
-                        print(f"Meeting detected — recording → {path}")
-            else:
-                active_since = None
-                if recorder is not None:
-                    inactive_since = inactive_since or now
-                    if now - inactive_since >= debounce:
-                        _finish(recorder, path, cfg)
-                        recorder, path, inactive_since = None, None, None
-        except Exception as e:
-            print(f"Tick error: {e}")
-        time.sleep(interval)
+                if active:
+                    inactive_since = None
+                    if recorder is None:
+                        active_since = active_since or now
+                        if now - active_since >= debounce:
+                            path = new_recording_path(get_local_dir(cfg))
+                            recorder = DualStreamRecorder(path, cfg)
+                            recorder.start()
+                            print(f"Meeting detected — recording → {path}")
+                else:
+                    active_since = None
+                    if recorder is not None:
+                        inactive_since = inactive_since or now
+                        if now - inactive_since >= debounce:
+                            _finish(recorder, path, cfg)
+                            recorder, path, inactive_since = None, None, None
+            except Exception as e:
+                print(f"Tick error: {e}")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nStopping Teams auto-capture.")
+        if recorder is not None:
+            print("Finalizing the in-progress recording...")
+            _finish(recorder, path, cfg)
 
 
 def _finish(recorder, path: str, cfg: dict) -> None:
