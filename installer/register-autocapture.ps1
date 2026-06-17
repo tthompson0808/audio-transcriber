@@ -10,10 +10,20 @@
 #
 [CmdletBinding()]
 param(
-    [string]$RepoPath = (Split-Path -Parent $PSScriptRoot),   # parent of installer/
+    [string]$RepoPath = "",
     [string]$TaskName = "AudioTranscriber_AutoCapture"
 )
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoPath) {
+    # Resolve <repo> as the parent of this script's installer/ folder, in the body
+    # (not the param default) because $PSScriptRoot can be empty in a param default
+    # depending on how PowerShell launched the script.
+    $here = $PSScriptRoot
+    if (-not $here -and $PSCommandPath) { $here = Split-Path -Parent $PSCommandPath }
+    if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Path }
+    $RepoPath = Split-Path -Parent $here
+}
 
 $pyExe  = Join-Path $RepoPath ".venv\Scripts\python.exe"
 $pywExe = Join-Path $RepoPath ".venv\Scripts\pythonw.exe"   # windowless, for background runs

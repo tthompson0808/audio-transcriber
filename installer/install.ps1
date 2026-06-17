@@ -15,12 +15,21 @@
 # Idempotent - safe to re-run.
 [CmdletBinding()]
 param(
-    [string]$RepoPath = (Split-Path -Parent $PSScriptRoot),  # parent of installer/
+    [string]$RepoPath = "",
     [string]$OwnerName = "",
     [switch]$SkipPython
 )
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+if (-not $RepoPath) {
+    # Resolve <repo> in the body (not the param default): $PSScriptRoot can be empty
+    # in a param default depending on how the script was launched.
+    $here = $PSScriptRoot
+    if (-not $here -and $PSCommandPath) { $here = Split-Path -Parent $PSCommandPath }
+    if (-not $here) { $here = Split-Path -Parent $MyInvocation.MyCommand.Path }
+    $RepoPath = Split-Path -Parent $here
+}
 
 function Write-Step($msg) { Write-Host "-> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)   { Write-Host "  [ok] $msg" -ForegroundColor Green }
@@ -113,7 +122,7 @@ Write-Ok "Transcripts will be saved to: $dataRoot"
 # A PowerShell script (not a native exe): a failure throws and $ErrorActionPreference
 # halts us here, so no exit-code check is needed.
 Write-Step "Registering the always-on auto-capture task"
-& "$PSScriptRoot\register-autocapture.ps1" -RepoPath $RepoPath
+& (Join-Path $RepoPath "installer\register-autocapture.ps1") -RepoPath $RepoPath
 
 Write-Host ""
 Write-Host "Install complete. Transcription is ON and always at the ready." -ForegroundColor Green
