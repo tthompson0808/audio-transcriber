@@ -76,7 +76,7 @@ try {
     Start-ScheduledTask -TaskName $TaskName
     $method = "scheduled task '$TaskName'"
 } catch {
-    $first = ($_.Exception.Message -split "`n")[0]
+    $first = (($_.Exception.Message -split "`n")[0]).Trim()  # strip trailing CR so the line prints cleanly
     Write-Host "  Scheduled task not permitted on this machine ($first)." -ForegroundColor Yellow
     Write-Host "  Using a per-user Startup shortcut instead (no admin needed)." -ForegroundColor Yellow
     $lnk = Install-StartupShortcut
