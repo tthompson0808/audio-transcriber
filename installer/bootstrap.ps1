@@ -1,7 +1,7 @@
 # Audio_Transcriber - one-line bootstrap (clone + install, keyless Option B).
 #
 # ONE instruction, from a normal (non-admin) PowerShell window:
-#   irm https://raw.githubusercontent.com/tthompson0808/audio-transcriber/feat/teams-stereo-local/installer/bootstrap.ps1 | iex
+#   irm https://raw.githubusercontent.com/tthompson0808/audio-transcriber/main/installer/bootstrap.ps1 | iex
 #
 # It clones (or updates) the repo to C:\src\audio-transcriber, then runs
 # installer\install.ps1, which installs the keyless local transcriber, stages
@@ -11,9 +11,18 @@
 # Written to be safe when piped to iex: no param() block, no $PSScriptRoot.
 
 $ErrorActionPreference = "Stop"
-$Branch  = "feat/teams-stereo-local"
+$Branch  = "main"
 $RepoUrl = "https://github.com/tthompson0808/audio-transcriber"
 $Dest    = "C:\src\audio-transcriber"
+
+# Native (.exe) calls do NOT honor $ErrorActionPreference in Windows PowerShell 5.1.
+# Run the command and throw on a non-zero exit so a failed clone/checkout/install stops here.
+function Invoke-Native {
+    $cmd = $args[0]
+    $rest = if ($args.Length -gt 1) { $args[1..($args.Length - 1)] } else { @() }
+    & $cmd @rest
+    if ($LASTEXITCODE -ne 0) { throw "Command failed (exit $LASTEXITCODE): $($args -join ' ')" }
+}
 
 Write-Host ""
 Write-Host "Audio_Transcriber one-line setup" -ForegroundColor White
@@ -25,15 +34,18 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     return
 }
 
-# 2. clone fresh, or reset an existing checkout to match the remote branch
+# 2. clone fresh, update an existing checkout, or stop on a non-git folder
 if (Test-Path (Join-Path $Dest ".git")) {
     Write-Host "-> Updating existing checkout at $Dest" -ForegroundColor Cyan
-    git -C $Dest fetch origin $Branch
-    git -C $Dest checkout -B $Branch "origin/$Branch"
+    Invoke-Native git -C $Dest fetch origin $Branch
+    Invoke-Native git -C $Dest checkout -B $Branch "origin/$Branch"
+} elseif (Test-Path $Dest) {
+    Write-Host "$Dest exists but is not a git checkout. Move it aside or delete it, then re-run." -ForegroundColor Red
+    return
 } else {
     Write-Host "-> Cloning $Branch to $Dest" -ForegroundColor Cyan
     New-Item -ItemType Directory -Path (Split-Path $Dest -Parent) -Force | Out-Null
-    git clone -b $Branch $RepoUrl $Dest
+    Invoke-Native git clone -b $Branch $RepoUrl $Dest
 }
 
 # 3. run install.ps1 as a FILE (so its own param()/$PSScriptRoot resolve correctly)
@@ -43,4 +55,4 @@ if (-not (Test-Path $installer)) {
     return
 }
 Write-Host "-> Running installer (it will ask for the owner name and the save folder)" -ForegroundColor Cyan
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -RepoPath $Dest
+Invoke-Native powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -RepoPath $Dest
