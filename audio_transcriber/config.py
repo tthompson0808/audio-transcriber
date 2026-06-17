@@ -51,8 +51,18 @@ DEFAULT_CONFIG = {
         "owner_name": "Me",        # left-channel speaker label (set to the laptop owner, e.g. "Tyson")
         "remote_name": "Remote",   # right-channel speaker label (the other participants)
         "target_sample_rate": 16000,  # final WAV rate fed to the recognizer
-        # Laptop speakers bleed into the mic. The loopback is a clean copy of the
-        # remote audio, so drop mic utterances that echo it (same words, same time).
+        # Primary echo fix: signal-level cancellation. Subtract the loopback
+        # (clean speaker output) from the mic before transcription, so the mic
+        # channel becomes the owner only. Runs before echo_dedup (the safety net).
+        "aec": {
+            "enabled": True,
+            "filter_taps": 2048,      # ~128 ms echo path at 16 kHz
+            "step_size": 0.4,         # NLMS adaptation rate (0..1); lower = stabler, slower
+            "max_delay_ms": 500,      # how far to search for the mic-vs-loopback delay
+            "geigel_threshold": 2.0,  # freeze adapting when mic peak > this x recent ref peak (owner talking)
+        },
+        # Secondary net: if any echo still transcribes, the loopback is the clean
+        # copy of the remote audio, so drop mic utterances that echo it.
         "echo_dedup": {
             "enabled": True,
             "similarity": 0.6,       # 0..1 full-string fuzzy match to call it an echo

@@ -156,6 +156,9 @@ def transcribe_auto(wav_path: str, cfg: dict) -> tuple[list[dict], bool, list[st
     if len(channels) >= 2 and cap.get("stereo", True):
         owner = cap.get("owner_name", "Me")
         remote = cap.get("remote_name", "Remote")
+        if cap.get("aec", {}).get("enabled", True):
+            from audio_transcriber.transcribe.echo_cancel import cancel_echo
+            channels[0] = cancel_echo(channels[0], channels[1], _TARGET_RATE, cfg)
         owner_utts = _transcribe_array(model, channels[0], cfg, owner)
         remote_utts = _transcribe_array(model, channels[1], cfg, remote)
 
