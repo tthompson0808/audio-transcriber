@@ -52,6 +52,6 @@ If the CEO asks "why does this meeting look empty?" — the answer is: it hasn't
 
 ## API keys + auth
 
-- **OpenAI Whisper key** — required for audio inflows. Set via `http://127.0.0.1:8765/settings`.
+- **OpenAI Whisper key** — NOT required. Transcription runs on-device (faster-whisper, local, no key). Only needed if `transcribe.engine` is switched to `cloud`.
 - **Anthropic Claude key** — OPTIONAL. Only needed for the 3x-daily API fallback. Primary synthesis is Claude Desktop.
 - **Microsoft Graph** — already authenticated during install (refresh token in Credential Manager).
