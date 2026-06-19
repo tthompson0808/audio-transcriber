@@ -34,12 +34,13 @@ $runExe = if (Test-Path $pywExe) { $pywExe } else { $pyExe }
 
 # Stop any loop already running, so we never end up with two grabbing the mic.
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -match 'audio_transcriber.*teams-auto' } |
+    Where-Object { $_.CommandLine -match 'audio_transcriber.*(autocapture|teams-auto)' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 function Start-Loop-Now {
     # Launch the capture loop immediately, hidden, so it is on without a re-logon.
-    Start-Process -FilePath $runExe -ArgumentList "-m audio_transcriber teams-auto serve" `
+    # autocapture = the logged, windowless wrapper around `teams-auto serve`.
+    Start-Process -FilePath $runExe -ArgumentList "-m audio_transcriber.autocapture" `
         -WorkingDirectory $RepoPath -WindowStyle Hidden | Out-Null
 }
 
@@ -50,7 +51,7 @@ function Install-StartupShortcut {
     $ws  = New-Object -ComObject WScript.Shell
     $lnk = $ws.CreateShortcut($lnkPath)
     $lnk.TargetPath       = $runExe
-    $lnk.Arguments        = "-m audio_transcriber teams-auto serve"
+    $lnk.Arguments        = "-m audio_transcriber.autocapture"
     $lnk.WorkingDirectory = $RepoPath
     $lnk.WindowStyle      = 7   # minimized / hidden
     $lnk.Description       = "Audio Transcriber auto-capture (keyless)"
@@ -60,7 +61,9 @@ function Install-StartupShortcut {
 
 $method = $null
 try {
-    $action  = New-ScheduledTaskAction -Execute $pyExe -Argument "-m audio_transcriber teams-auto serve"
+    # Use pythonw ($runExe), not python.exe ($pyExe): an admin-created task otherwise
+    # flashes a console window at every (re)start. autocapture = the logged wrapper.
+    $action  = New-ScheduledTaskAction -Execute $runExe -Argument "-m audio_transcriber.autocapture"
     $trigger = New-ScheduledTaskTrigger -AtLogOn
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
         -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew `

@@ -39,7 +39,7 @@ DEFAULT_CONFIG = {
     },
     "auto_record": {
         "enabled": True,
-        "processes": ["Zoom.exe"],  # Teams handled via Graph poller, not WASAPI
+        "processes": ["Zoom.exe"],  # optional Zoom auto-record. Teams is captured by the always-on teams-auto loop (teams_detect below), NOT here.
         "cancel_window_seconds": 20,
         "poll_interval_seconds": 30,
     },
