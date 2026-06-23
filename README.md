@@ -83,6 +83,6 @@ cd C:\src\audio-transcriber\installer
 ```
 Then open `http://127.0.0.1:8765/settings` to enter API keys, and run the Graph OAuth flow:
 ```powershell
-C:\Users\<user>\AppData\Local\Audio_Transcriber\venv\Scripts\python.exe `
+C:\src\audio-transcriber\.venv\Scripts\python.exe `
     -m audio_transcriber graph-auth --client-id <ID> --tenant-id <TENANT>
 ```
