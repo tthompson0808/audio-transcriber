@@ -2,7 +2,7 @@
 
 Windows port of Tyler's macOS AudioTools, deployable to non-technical clients (initially: small-business CEOs). Captures meetings four ways, runs them through Whisper + Claude, and writes structured tasks/decisions/topics into a queryable SQLite digest with column-identical schema to Tyler's own AudioTools digest.
 
-## Architecture (see [plan](../../../../.claude/plans/i-need-to-make-adaptive-ripple.md))
+## Architecture
 
 Four inflow pipelines feed one queue → synthesis → storage + digest:
 1. **Microsoft Graph poller** — pulls Teams transcripts (with speaker labels) every 5 min
