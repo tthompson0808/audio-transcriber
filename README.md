@@ -73,7 +73,7 @@ The schema-parity test reads from `/Users/tyler/AudioTools/src/digest/db.py` to 
 
 ## Install on a client laptop
 
-See [docs/CEO_HANDOFF.md](docs/CEO_HANDOFF.md) for the CEO-facing one-pager and the [plan](../../../../.claude/plans/i-need-to-make-adaptive-ripple.md) "Install process" section for Tyler's on-site checklist.
+See [docs/CEO_HANDOFF.md](docs/CEO_HANDOFF.md) for the CEO-facing one-pager.
 
 Short version:
 ```powershell
