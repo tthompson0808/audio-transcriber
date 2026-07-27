@@ -6,8 +6,8 @@ Windows port of Tyler's macOS AudioTools, deployable to non-technical clients (i
 
 Four inflow pipelines feed one queue → synthesis → storage + digest:
 1. **Microsoft Graph poller** — pulls Teams transcripts (with speaker labels) every 5 min
-2. **WASAPI auto-record** — detects Zoom.exe and captures system audio → Whisper API
-3. **Drag-drop audio/video** — `OneDrive\Audio_Transcriber\Drop_Recordings\` → Whisper API
+2. **WASAPI auto-record** — detects Zoom.exe and captures system audio → Whisper (on-device by default)
+3. **Drag-drop audio/video** — `OneDrive\Audio_Transcriber\Drop_Recordings\` → Whisper (on-device by default)
 4. **Drag-drop VTT or paste-text** — `OneDrive\Audio_Transcriber\Drop_Transcripts\` → parser
 
 Plus a manual trigger via Claude Code on the CEO's laptop: he says "start transcribing my meeting" and Claude runs the CLI.
@@ -17,7 +17,7 @@ Plus a manual trigger via Claude Code on the CEO's laptop: he says "start transc
 ```
 audio_transcriber/
   capture/          process detector, WASAPI recorder, Graph poller, dropzone watcher, dedup, exclusion, meeting orchestrator
-  transcribe/       Whisper API client + router
+  transcribe/       on-device faster-whisper + Whisper API client + router + echo cancellation
   synthesize/       speaker-aware Claude summarizer
   ingest/           VTT and Teams-paste parsers + ingest pipelines
   digest/           SQLite DDL + writer + queries (column-identical to Tyler's AudioTools)
@@ -29,11 +29,15 @@ audio_transcriber/
   cli.py            argparse entry — what Claude Code invokes
   CLAUDE.md         instructions for Claude Code on the client's machine
 installer/
+  bootstrap.ps1     one-line clone + install (pipe to iex), no admin required
   install.ps1       provisions venv + scheduled tasks + shortcut + folders
+  register-autocapture.ps1  always-on capture at logon (scheduled task, Startup-shortcut fallback)
   update_check.ps1  nightly self-updater (GitHub Releases)
   uninstall.ps1     clean teardown (keeps OneDrive data by default)
 docs/
   CEO_HANDOFF.md    printable one-pager for the client
+  CLIENT_INSTALL.md client-facing install guide
+  INSTALL_NOTECARD.md  pocket reference for on-site installs
 tests/              schema parity, parsers, exclusion, dedup, OneDrive stability, speaker branching
 ```
 
