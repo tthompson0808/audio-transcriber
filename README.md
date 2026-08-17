@@ -25,8 +25,12 @@ audio_transcriber/
   dashboard/        FastAPI on 127.0.0.1:8765 with Tailwind templates
   auth/             Windows Credential Manager (via keyring)
   tray.py           pystray system-tray icon (gray/red/yellow states)
+  autocapture.py    windowless launcher (pythonw) — pre-creates data dirs and redirects crashes to a log, then runs the loop below
   auto_capture_runner.py   long-running process-detector loop launched at logon
   cli.py            argparse entry — what Claude Code invokes
+  mcp_server.py     MCP server for Claude Desktop — drives synthesis on the CEO's Claude subscription instead of the API
+  claude_api.py     Anthropic API client (the fallback synthesis path)
+  config.py         Windows-adapted config — paths default to per-user AppData + OneDrive
   CLAUDE.md         instructions for Claude Code on the client's machine
 installer/
   bootstrap.ps1     one-line clone + install (pipe to iex), no admin required
