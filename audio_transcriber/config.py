@@ -76,6 +76,9 @@ DEFAULT_CONFIG = {
         "model_dir": None,         # set to a staged snapshot folder for offline/firewalled machines
         "device": "cpu",
         "compute_type": "int8",
+        # Leave 2 logical cores free so transcription doesn't compete with
+        # whatever the owner is actively doing when a meeting ends.
+        "cpu_threads": max(1, (os.cpu_count() or 4) - 2),
         "language": "en",
         "vad_filter": True,        # drop silence → fewer hallucinations + tighter timestamps
     },
@@ -83,7 +86,7 @@ DEFAULT_CONFIG = {
         "method": "mic",           # "mic" = Teams using the microphone (best) | "render" = using speakers
         "process_match": ["ms-teams.exe", "teams.exe"],  # matched case-insensitively
         "path_substr": "Teams",    # extra guard so we match the Teams process tree, not look-alikes
-        "poll_interval_seconds": 2,
+        "poll_interval_seconds": 5,
         "min_active_seconds": 3,   # endpoint must stay ACTIVE/INACTIVE this long before we flip state
     },
     "graph": {

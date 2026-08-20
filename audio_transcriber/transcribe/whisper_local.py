@@ -35,6 +35,10 @@ MODEL_REPOS = {
     "large-v3": "Systran/faster-whisper-large-v3",
 }
 
+# teams-auto is a long-lived process — the model only needs loading once per
+# (ref, device, compute_type, cpu_threads) combo, not on every meeting.
+_MODEL_CACHE: dict = {}
+
 
 def load_model(cfg: dict):
     if WhisperModel is None:
@@ -42,11 +46,24 @@ def load_model(cfg: dict):
     t = cfg.get("transcribe", {})
     # A staged snapshot folder (offline) wins; otherwise load by name (may download).
     model_ref = t.get("model_dir") or t.get("model", "small.en")
-    return WhisperModel(
+    device = t.get("device", "cpu")
+    compute_type = t.get("compute_type", "int8")
+    # cpu_threads=0 (the faster-whisper default) lets CTranslate2 grab every
+    # logical core, which pegs the whole machine for the length of the
+    # transcription. Cap it so the foreground app stays responsive.
+    cpu_threads = t.get("cpu_threads", 4)
+    key = (model_ref, device, compute_type, cpu_threads)
+    cached = _MODEL_CACHE.get(key)
+    if cached is not None:
+        return cached
+    model = WhisperModel(
         model_ref,
-        device=t.get("device", "cpu"),
-        compute_type=t.get("compute_type", "int8"),
+        device=device,
+        compute_type=compute_type,
+        cpu_threads=cpu_threads,
     )
+    _MODEL_CACHE[key] = model
+    return model
 
 
 def _read_channels(path: str):

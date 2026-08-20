@@ -12,6 +12,7 @@ before we start, and stay INACTIVE that long before we stop — so a notificatio
 ding or a momentary silence never flaps the recorder.
 """
 import os
+import sys
 import time
 
 from audio_transcriber.capture.teams_session_detector import teams_meeting_active
@@ -23,6 +24,27 @@ try:
     import comtypes
 except ImportError:
     comtypes = None
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+
+def _lower_priority() -> None:
+    """De-prioritize this process — it runs 24/7 in the background, so let
+    whatever the owner is actively doing win CPU contention (esp. during the
+    post-meeting transcription burst)."""
+    if psutil is None:
+        return
+    try:
+        proc = psutil.Process()
+        if sys.platform.startswith("win"):
+            proc.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+        else:
+            proc.nice(10)
+    except Exception:
+        pass
 
 
 # --- On/off control -------------------------------------------------------- #
@@ -69,6 +91,7 @@ def serve(cfg: dict) -> None:
             comtypes.CoInitialize()
         except Exception:
             pass
+    _lower_priority()
 
     _clear_pause(cfg)  # always start ON ("turn on again ... on next start")
 
